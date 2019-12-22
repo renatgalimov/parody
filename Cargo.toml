@@ -10,23 +10,23 @@ description = "File-based HTTP mock library"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
-tempfile = "*"
+tempfile = "^3.0"
 
 [dependencies]
-clap = "*"
-env_logger = "*"
-http = "*"
-hyper = "*"
-iron = "*"
-log = "*"
-percent-encoding = "*"
-persistent = "*"
-plugin = "*"
-regex = "*"
-reqwest = "*"
-router = "*"
-serde_json = "*"
-serde_yaml = "*"
+clap = "^2.0"
+env_logger = "^0.7.0"
+http = "^0.2.0"
+hyper = "^0.10.0"
+iron = "^0.6.0"
+log = "^0.4.0"
+percent-encoding = "^2.0"
+persistent = "^0.4.0"
+plugin = "^0.2.0"
+regex = "^1.0"
+reqwest = "^0.9.0"
+router = "^0.6.0"
+serde_json = "^1.0"
+serde_yaml = "^0.8.0"
 url = "^1.7"
 
 [[bin]]
