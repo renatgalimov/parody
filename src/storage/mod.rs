@@ -2,7 +2,10 @@ extern crate percent_encoding;
 extern crate serde_json;
 extern crate serde_yaml;
 extern crate url;
-use crate::{error::Error, request::ParodyRequest, response::ParodyResponse, result::Result};
+use crate::{
+    error::Error, request::ParodyRequest, response::ParodyResponse, result::Result,
+    storage::error::StorageError,
+};
 pub use config::Config;
 use std::{
     borrow::Cow,
@@ -11,12 +14,10 @@ use std::{
     path::PathBuf,
 };
 
-use crate::storage::error::StorageError;
-
 mod config;
 mod error;
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 
 const QUERY_SEPARATOR: &'static str = ":PARODY-QUERY";
 const NO_HOST_DIR: &'static str = ":NO-HOST";
@@ -100,7 +101,7 @@ impl Storage {
     fn save_headers<T: ParodyResponse>(&self, resp: &T) -> Result<()> {
         let headers = resp.get_headers();
 
-        let mut headers_file_path = self.get_headers_file_path();
+        let headers_file_path = self.get_headers_file_path();
         match serde_yaml::to_writer(File::create(&headers_file_path)?, &headers) {
             Ok(_) => {
                 trace!(target: "storage", "Saved headers to {}", &headers_file_path.as_os_str().to_string_lossy())
@@ -123,7 +124,7 @@ impl Storage {
         std::io::copy(
             resp.get_body_reader(),
             &mut File::create(&self.get_body_file_path())?,
-        );
+        )?;
 
         Ok(())
     }
@@ -144,7 +145,7 @@ impl Storage {
         let headers_file_path = self.get_headers_file_path();
         debug!(target: "storage", "Loading headers from: {}", headers_file_path.to_string_lossy());
         let mut headers = iron::headers::Headers::new();
-        let mut headers_file = match File::open(&headers_file_path) {
+        let headers_file = match File::open(&headers_file_path) {
             Ok(file) => file,
             Err(error) => match error.kind() {
                 std::io::ErrorKind::NotFound => {
@@ -155,10 +156,10 @@ impl Storage {
             },
         };
 
-        let headers_raw: Vec<(String, String)> = serde_yaml::from_reader(headers_file)?;
+        let headers_raw: Vec<(String, Vec<u8>)> = serde_yaml::from_reader(headers_file)?;
 
         for (name, value) in headers_raw {
-            headers.append_raw(name, value.as_bytes().to_vec());
+            headers.append_raw(name, value);
         }
 
         Ok(headers)
@@ -178,7 +179,7 @@ impl Storage {
                     StorageError::Common(error.into())
                 }
             })?
-            .read_to_string(&mut status_raw);
+            .read_to_string(&mut status_raw)?;
         let status_raw = status_raw.trim();
 
         Ok(iron::status::Status::from_u16(status_raw.parse()?))
@@ -239,7 +240,7 @@ fn get_response_storage_dir<T: ParodyRequest>(req: &T, config: &Config) -> Resul
 
     let mut query: Vec<(Cow<str>, Cow<str>)> = url
         .query_pairs()
-        .filter(|(arg, _value)| config.should_use_query_in_path(arg))
+        .filter(|(arg, _value)| config.is_query_in_path(arg))
         .collect();
 
     if !query.is_empty() {

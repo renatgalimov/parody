@@ -35,7 +35,7 @@ impl ParodyRequest for &str {
     }
 }
 
-type TestResponse<'a, T, U> = (u16, T, U);
+pub type TestResponse<'a, T, U> = (u16, T, U);
 
 impl<'a, T, U: 'static> ParodyResponse for TestResponse<'a, T, U>
 where
@@ -64,6 +64,7 @@ header! { (XTestData, "X-Test-Data") => [String] }
 #[test]
 fn test_load_should_return_exactly_same_result_as_was_saved() {
     let storage_path = tempfile::tempdir().expect("Cannot create storage path");
+    let storage_config = Config::default();
 
     let storage = Storage::new_with_config(
         &"https://example.com/",
@@ -99,8 +100,11 @@ fn test_load_should_return_exactly_same_result_as_was_saved() {
 
     assert_eq!(*body_cursor.get_ref(), b"{\"lorem\": \"ipsum\"}".to_vec());
 
-    assert_eq!(response.status.expect("Response does not have status"), iron::status::InternalServerError);
- }
+    assert_eq!(
+        response.status.expect("Response does not have status"),
+        iron::status::InternalServerError
+    );
+}
 
 #[test]
 fn test_load_when_response_cached_should_return_response() {
@@ -108,7 +112,7 @@ fn test_load_when_response_cached_should_return_response() {
         &"https://example.com/status200?headers=Content-Type:application%2Fjson",
         Config::default()
             .with_root_dir(get_test_files_path())
-            .with_query("headers"),
+            .with_query_path("headers"),
     )
     .unwrap();
 
@@ -208,11 +212,13 @@ fn test_save_should_save_response_status_in_status_file() {
     )
     .expect("Cannot create new storage with config");
 
-    storage.save(&mut (
-        403 as u16,
-        &[],
-        Cursor::new("Lorem ipsum dolor sit amet".as_bytes()),
-    ));
+    storage
+        .save(&mut (
+            403 as u16,
+            &[],
+            Cursor::new("Lorem ipsum dolor sit amet".as_bytes()),
+        ))
+        .expect("Cannot save into storage");
 
     let status_path = storage_root.path().join("example.com/some-path/GET.status");
 
@@ -234,7 +240,7 @@ fn test_save_should_save_response_body_in_body_file() {
         &"https://example.com/some-path/?query=value",
         Config::default()
             .with_root_dir(storage_root.path().into())
-            .with_query("query"),
+            .with_query_path("query"),
     )
     .expect("Cannot create new storage with config");
 
@@ -271,7 +277,7 @@ fn test_save_should_save_response_headers_in_headers_file() {
         &"https://example.com/some-path/?query=value",
         Config::default()
             .with_root_dir(storage_root.path().into())
-            .with_query("query"),
+            .with_query_path("query"),
     )
     .expect("Cannot create new storage with config");
     storage
@@ -330,7 +336,7 @@ fn test_get_response_storage_dir_when_request_has_query_should_include_query_fro
     assert_eq!(
         get_response_storage_dir(
             &"https://example.com/test string/unicode-α?query&query=&query-arg=value",
-            &Config::default().with_query("query")
+            &Config::default().use_query_in_path("query")
         )
         .unwrap(),
         PathBuf::from_str("example.com/test string/unicode-α/:PARODY-QUERY/query/query").unwrap()
