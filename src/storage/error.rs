@@ -1,5 +1,4 @@
 use crate::error::CommonError;
-use std::fmt;
 
 #[derive(Debug)]
 pub(crate) enum StorageError {

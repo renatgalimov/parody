@@ -4,6 +4,7 @@ extern crate regex;
 extern crate serde_yaml;
 extern crate tempfile;
 extern crate url;
+
 use super::*;
 
 use crate::error::Error;
@@ -14,11 +15,11 @@ use std::{io::Read, path::Path};
 const REQUEST_REGEX: &'static str = r"^(?:(?P<method>[A-Z]+) )?(?P<url>.*)$";
 const DEFAULT_METHOD: &'static str = "GET";
 
-fn get_method<'a>(req: &'a str) -> Option<&'a str> {
-    let regex = Regex::new(REQUEST_REGEX).unwrap();
-    let captures = regex.captures(req)?;
-    captures.name("method").map(|method| method.as_str())
-}
+// fn get_method<'a>(req: &'a str) -> Option<&'a str> {
+//     let regex = Regex::new(REQUEST_REGEX).unwrap();
+//     let captures = regex.captures(req)?;
+//     captures.name("method").map(|method| method.as_str())
+// }
 
 impl ParodyRequest for &str {
     fn get_url(&self) -> url::Url {
@@ -42,11 +43,11 @@ where
     T: AsRef<[(&'a str, &'a str)]>,
     U: Read,
 {
-    fn get_headers(&self) -> Vec<(String, String)> {
+    fn get_headers(&self) -> Vec<(String, Vec<u8>)> {
         self.1
             .as_ref()
             .iter()
-            .map(|(header, value)| (String::from(*header), String::from(*value)))
+            .map(|(header, value)| (String::from(*header), (*value).as_bytes().to_vec()))
             .collect()
     }
 
@@ -64,7 +65,6 @@ header! { (XTestData, "X-Test-Data") => [String] }
 #[test]
 fn test_load_should_return_exactly_same_result_as_was_saved() {
     let storage_path = tempfile::tempdir().expect("Cannot create storage path");
-    let storage_config = Config::default();
 
     let storage = Storage::new_with_config(
         &"https://example.com/",
@@ -91,7 +91,7 @@ fn test_load_should_return_exactly_same_result_as_was_saved() {
     assert_eq!(response.headers, expected_headers);
 
     let mut write_body = response.body.expect("Response should have a write body");
-    let mut body = Vec::<u8>::new();
+    let body = Vec::<u8>::new();
     let mut body_cursor = Cursor::new(body);
 
     write_body
@@ -114,7 +114,7 @@ fn test_load_when_response_cached_should_return_response() {
             .with_root_dir(get_test_files_path())
             .with_query_path("headers"),
     )
-    .unwrap();
+    .expect("Storage creation should always succeed.");
 
     let response = storage.load().unwrap();
 
@@ -123,7 +123,7 @@ fn test_load_when_response_cached_should_return_response() {
     assert_eq!(response.headers, expected_headers);
 
     let mut write_body = response.body.expect("Response should have a write body");
-    let mut body = Vec::<u8>::new();
+    let body = Vec::<u8>::new();
     let mut body_cursor = Cursor::new(body);
 
     write_body
@@ -171,7 +171,7 @@ fn test_load_when_there_is_no_status_file_should_return_cache_miss() {
 
 #[test]
 fn test_storage_new_should_create_storage_for_request() {
-    let storage = Storage::new(&"file:///test/location");
+    Storage::new(&"file:///test/location").unwrap();
 }
 
 // #[test]

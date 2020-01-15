@@ -1,8 +1,6 @@
 use super::*;
-use crate::{response::ParodyResponse, result::Result};
-use iron::{Chain, Iron, Plugin, Response};
-use persistent::Read;
-use std::{path::Path, str::FromStr};
+use iron::Iron;
+use std::path::Path;
 
 fn respond_from_cache(req: &mut iron::Request) -> IronResult<iron::Response> {
     let response_cache = req

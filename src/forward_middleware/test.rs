@@ -61,16 +61,14 @@ fn start_upstream(
 }
 
 fn to_iron_response(response: reqwest::Response) -> iron::Response {
-    let headers = iron::headers::HeaderMap::new();
+    let mut result = iron::Response::with(iron::status::Unregistered(response.status().as_u16()));
 
     for (name, value) in response.headers() {
-        headers.append_raw(name.as_str(), value.as_bytes().to_vec());
+        result
+            .headers
+            .append_raw(name.as_str().to_owned(), value.as_bytes().to_vec());
     }
 
-    let mut result = iron::Response::with((
-        iron::status::Unregistered(response.status().as_u16()),
-        headers,
-    ));
     result
 }
 
@@ -78,13 +76,12 @@ fn forward_from_environment(req: &mut iron::Request) -> IronResult<iron::Respons
     let proxy_response = req
         .extensions
         .remove::<ProxyResponse>()
-        .expect("Proxy response should exist intests");
+        .expect("Proxy response should exist in tests");
 
-    let iron_response: iron::Response = proxy_response
+    proxy_response
         .load()
-        .expect("Proxy request should always succeed");
-
-    Ok(iron_response)
+        .map(to_iron_response)
+        .map_err(|error| iron::IronError::new(error, iron::status::InternalServerError))
 }
 
 fn init() {

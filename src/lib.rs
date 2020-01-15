@@ -1,9 +1,9 @@
 extern crate url;
 #[macro_use]
 extern crate log;
+extern crate http;
 #[macro_use]
 extern crate hyper;
-extern crate http;
 extern crate iron;
 extern crate regex;
 extern crate serde_json;
@@ -21,7 +21,7 @@ pub use crate::{
     forward_middleware::{ForwardMiddleware, ProxyResponse},
 };
 use crate::{error::Error, forward_middleware::ProxyLoad, result::Result};
-use std::{cell::Cell, path::PathBuf};
+use std::path::PathBuf;
 
 fn handle_response(req: &mut iron::Request) -> iron::IronResult<iron::Response> {
     trace!("Handling request: {} {}", req.method, req.url);
@@ -60,7 +60,10 @@ fn handle_response(req: &mut iron::Request) -> iron::IronResult<iron::Response> 
             ))
         }
     };
-    response_storage.save(&mut response);
+
+    response_storage
+        .save(&mut response)
+        .map_err(|error| iron::IronError::new(error, iron::status::InternalServerError))?;
 
     Ok(iron::Response::with(iron::status::Ok))
 }

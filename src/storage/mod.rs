@@ -99,7 +99,18 @@ impl Storage {
     }
 
     fn save_headers<T: ParodyResponse>(&self, resp: &T) -> Result<()> {
-        let headers = resp.get_headers();
+        let headers: Vec<(String, String)> = resp
+            .get_headers()
+            .drain(..)
+            .map(|(name, value): (String, Vec<u8>)| {
+                (
+                    name,
+                    std::str::from_utf8(&value)
+                        .expect("FIXME: need to decide what to do if headers are not UTF-8 strings")
+                        .to_owned(),
+                )
+            })
+            .collect();
 
         let headers_file_path = self.get_headers_file_path();
         match serde_yaml::to_writer(File::create(&headers_file_path)?, &headers) {
@@ -156,10 +167,10 @@ impl Storage {
             },
         };
 
-        let headers_raw: Vec<(String, Vec<u8>)> = serde_yaml::from_reader(headers_file)?;
+        let headers_raw: Vec<(String, String)> = serde_yaml::from_reader(headers_file)?;
 
         for (name, value) in headers_raw {
-            headers.append_raw(name, value);
+            headers.append_raw(name, value.as_bytes().to_vec());
         }
 
         Ok(headers)

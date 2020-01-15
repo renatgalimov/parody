@@ -62,7 +62,7 @@ fn main() {
         debug!("Storage dir path already exists");
     }
 
-    let listener = match parody::start_default(target_url, storage_dir_path.to_owned()) {
+    match parody::start_default(target_url, storage_dir_path.to_owned()) {
         Ok(listener) => {
             println!("PARODY_HOST={}", listener.socket.ip());
             println!("PARODY_PORT={}", listener.socket.port());
