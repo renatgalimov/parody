@@ -1,5 +1,6 @@
 use super::*;
-use iron::{typemap::Key, Chain, Iron, IronResult, Plugin};
+use crate::iron::Set;
+use iron::{typemap::Key, BeforeMiddleware, Chain, Iron, IronResult, Plugin};
 use persistent::Read;
 
 #[derive(Clone, Copy)]
@@ -69,6 +70,8 @@ fn to_iron_response(response: reqwest::Response) -> iron::Response {
             .append_raw(name.as_str().to_owned(), value.as_bytes().to_vec());
     }
 
+    result = result.set(iron::response::BodyReader(response));
+
     result
 }
 
@@ -86,6 +89,87 @@ fn forward_from_environment(req: &mut iron::Request) -> IronResult<iron::Respons
 
 fn init() {
     let _ = env_logger::builder().is_test(true).try_init();
+}
+
+struct DummyNetworkStream {
+    response: std::io::Cursor<String>,
+}
+
+impl DummyNetworkStream {
+    fn new() -> Self {
+        let content = String::from("GET / HTTP/1.1\nHost: localhost\n\n");
+
+        Self {
+            response: std::io::Cursor::new(content),
+        }
+    }
+}
+
+impl std::io::Write for DummyNetworkStream {
+    fn flush(&mut self) -> std::result::Result<(), std::io::Error> {
+        unimplemented!()
+    }
+    fn write(&mut self, _: &[u8]) -> std::result::Result<usize, std::io::Error> {
+        unimplemented!()
+    }
+}
+
+impl std::io::Read for DummyNetworkStream {
+    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+        std::io::copy(&mut self.response, &mut std::io::Cursor::new(buf)).map(|n| n as usize)
+    }
+}
+
+impl hyper::net::NetworkStream for DummyNetworkStream {
+    fn set_write_timeout(
+        &self,
+        _: std::option::Option<std::time::Duration>,
+    ) -> std::result::Result<(), std::io::Error> {
+        unimplemented!()
+    }
+    fn set_read_timeout(
+        &self,
+        _: std::option::Option<std::time::Duration>,
+    ) -> std::result::Result<(), std::io::Error> {
+        unimplemented!()
+    }
+    fn peer_addr(&mut self) -> std::result::Result<std::net::SocketAddr, std::io::Error> {
+        unimplemented!()
+    }
+}
+
+#[test]
+fn forward_middleware_before_should_replace_request_schema_with_upstream_schema() {
+    init();
+    let middleware =
+        ForwardMiddleware::new(url::Url::from_str("https://example.com").expect("URL is valid"));
+
+    let addr = std::net::SocketAddr::new(
+        std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+        80,
+    );
+
+    let mut network_stream = DummyNetworkStream::new();
+    let mut stream =
+        hyper::buffer::BufReader::new(&mut network_stream as &mut dyn hyper::net::NetworkStream);
+    let http_request = match iron::request::HttpRequest::new(&mut stream, addr) {
+        Ok(request) => request,
+        Err(error) => panic!("Cannot create HttpRequest: {}", error),
+    };
+    let mut request =
+        iron::Request::from_http(http_request, addr, &iron::Protocol::http()).unwrap();
+
+    middleware
+        .before(&mut request)
+        .expect("Before middleware should succeed");
+
+    let cached_request: &reqwest::Request = request
+        .extensions
+        .get::<ProxyResponse>()
+        .expect("'before' method shoud set proxy response");
+
+    assert_eq!(request.url.scheme(), "http");
+    assert_eq!(cached_request.url().scheme(), "https");
 }
 
 #[test]

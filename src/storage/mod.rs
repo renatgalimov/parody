@@ -20,7 +20,6 @@ mod error;
 pub(crate) mod test;
 
 const QUERY_SEPARATOR: &'static str = ":PARODY-QUERY";
-const NO_HOST_DIR: &'static str = ":NO-HOST";
 const HEADERS_FILE_EXTENSION: &'static str = ".headers.yaml";
 const BODY_FILE_EXTENSION: &'static str = ".body";
 const STATUS_FILE_EXTENSION: &'static str = ".status";
@@ -238,9 +237,7 @@ fn percent_encode_slash(input: &str) -> String {
 fn get_response_storage_dir<T: ParodyRequest>(req: &T, config: &Config) -> Result<PathBuf> {
     let url: url::Url = req.get_url();
 
-    let mut target_path = config
-        .get_root_dir()
-        .join(url.host_str().unwrap_or(NO_HOST_DIR));
+    let mut target_path = config.get_root_dir().to_path_buf();
 
     if let Some(segments) = url.path_segments() {
         for dir in segments {

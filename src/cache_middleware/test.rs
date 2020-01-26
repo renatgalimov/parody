@@ -19,17 +19,18 @@ fn respond_from_cache(req: &mut iron::Request) -> IronResult<iron::Response> {
     }
 }
 
-#[test]
 fn init() {
     let _ = env_logger::builder().is_test(true).try_init();
 }
 
 #[test]
 fn test_cache_middleware_when_response_cached_should_add_response_cache_to_environment() {
+    init();
     let storage = Path::new(file!())
         .parent()
         .expect("source file always has a parent directory")
-        .join("test_files");
+        .join("test_files")
+        .join("localhost");
 
     let mut middleware = CacheMiddleware::new();
     middleware.set_root_dir(storage);
@@ -53,8 +54,8 @@ fn test_cache_middleware_when_response_cached_should_add_response_cache_to_envir
             _ => Some((key.as_str(), value.to_str().unwrap())),
         })
         .collect();
-    assert_eq!(headers_raw, vec![("content-type", "application/json")]);
 
+    assert_eq!(headers_raw, vec![("content-type", "application/json")]);
     assert_eq!(
         response.text().expect("Response should have text body"),
         "{\"lorem\": \"ipsum\"}\n"

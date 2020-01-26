@@ -15,12 +15,6 @@ use std::{io::Read, path::Path};
 const REQUEST_REGEX: &'static str = r"^(?:(?P<method>[A-Z]+) )?(?P<url>.*)$";
 const DEFAULT_METHOD: &'static str = "GET";
 
-// fn get_method<'a>(req: &'a str) -> Option<&'a str> {
-//     let regex = Regex::new(REQUEST_REGEX).unwrap();
-//     let captures = regex.captures(req)?;
-//     captures.name("method").map(|method| method.as_str())
-// }
-
 impl ParodyRequest for &str {
     fn get_url(&self) -> url::Url {
         url::Url::from_str(*self).unwrap()
@@ -111,7 +105,7 @@ fn test_load_when_response_cached_should_return_response() {
     let storage = Storage::new_with_config(
         &"https://example.com/status200?headers=Content-Type:application%2Fjson",
         Config::default()
-            .with_root_dir(get_test_files_path())
+            .with_root_dir(get_test_files_path().join("example.com"))
             .with_query_path("headers"),
     )
     .expect("Storage creation should always succeed.");
@@ -208,7 +202,7 @@ fn test_save_should_save_response_status_in_status_file() {
 
     let storage = Storage::new_with_config(
         &"https://example.com/some-path/?query=value",
-        Config::default().with_root_dir(storage_root.path().into()),
+        Config::default().with_root_dir(storage_root.path().join("example.com")),
     )
     .expect("Cannot create new storage with config");
 
@@ -239,7 +233,7 @@ fn test_save_should_save_response_body_in_body_file() {
     let storage = Storage::new_with_config(
         &"https://example.com/some-path/?query=value",
         Config::default()
-            .with_root_dir(storage_root.path().into())
+            .with_root_dir(storage_root.path().join("example.com"))
             .with_query_path("query"),
     )
     .expect("Cannot create new storage with config");
@@ -276,7 +270,7 @@ fn test_save_should_save_response_headers_in_headers_file() {
     let storage = Storage::new_with_config(
         &"https://example.com/some-path/?query=value",
         Config::default()
-            .with_root_dir(storage_root.path().into())
+            .with_root_dir(storage_root.path().join("example.com"))
             .with_query_path("query"),
     )
     .expect("Cannot create new storage with config");
@@ -314,7 +308,7 @@ fn test_save_should_save_request() {}
 fn test_get_response_storage_dir_when_request_has_path_should_return_target_path() {
     assert_eq!(
         get_response_storage_dir(&"file:///test/location", &Config::default()).unwrap(),
-        PathBuf::from_str(":NO-HOST/test/location").unwrap()
+        PathBuf::from_str("test/location").unwrap()
     );
 }
 
@@ -322,7 +316,7 @@ fn test_get_response_storage_dir_when_request_has_path_should_return_target_path
 fn test_get_response_storage_dir_when_request_has_query_should_not_include_them_in_target_path() {
     assert_eq!(
         get_response_storage_dir(&"file:///test/location", &Config::default()).unwrap(),
-        PathBuf::from_str(":NO-HOST/test/location").unwrap()
+        PathBuf::from_str("test/location").unwrap()
     );
 }
 
@@ -339,15 +333,15 @@ fn test_get_response_storage_dir_when_request_has_query_should_include_query_fro
             &Config::default().use_query_in_path("query")
         )
         .unwrap(),
-        PathBuf::from_str("example.com/test string/unicode-α/:PARODY-QUERY/query/query").unwrap()
+        PathBuf::from_str("test string/unicode-α/:PARODY-QUERY/query/query").unwrap()
     );
 }
 
 #[test]
-fn test_get_response_storage_dir_when_request_has_host_should_return_target_path_with_host() {
+fn test_get_response_storage_dir_when_request_has_host_only_should_return_empty_target_path() {
     assert_eq!(
         get_response_storage_dir(&"https://example.com", &Config::default()).unwrap(),
-        PathBuf::from_str("example.com").unwrap()
+        PathBuf::from_str("").unwrap()
     );
 }
 
@@ -359,6 +353,6 @@ fn test_get_response_storage_dir_all_features() {
             &Config::default()
         )
         .unwrap(),
-        PathBuf::from_str("example.com/test string/unicode-α/").unwrap()
+        PathBuf::from_str("test string/unicode-α/").unwrap()
     );
 }

@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate clap;
 extern crate iron;
 extern crate parody; // use parody::ParodyServer;
@@ -63,10 +62,10 @@ fn main() {
     }
 
     match parody::start_default(target_url, storage_dir_path.to_owned()) {
-        Ok(listener) => {
-            println!("PARODY_HOST={}", listener.socket.ip());
-            println!("PARODY_PORT={}", listener.socket.port());
-            listener
+        Ok(parody) => {
+            println!("PARODY_HOST={}", parody.ip());
+            println!("PARODY_PORT={}", parody.port());
+            parody
         }
         Err(error) => {
             eprintln!("Cannot start server: {}", error);
