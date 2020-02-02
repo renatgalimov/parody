@@ -18,9 +18,6 @@ mod response;
 mod result;
 mod storage;
 
-#[cfg(test)]
-mod test;
-
 pub use crate::{
     cache_middleware::{CacheMiddleware, ResponseCache},
     forward_middleware::{ForwardMiddleware, ProxyResponse},
