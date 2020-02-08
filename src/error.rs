@@ -1,10 +1,17 @@
 use std::fmt;
 
 #[derive(Debug)]
+pub enum UtilError {
+    DomainMissing,
+    InvalidCurrentFilePath,
+}
+
+#[derive(Debug)]
 pub enum Error {
     AlreadyListening,
     CacheMiss,
     Common(CommonError),
+    Util(UtilError),
 }
 
 #[derive(Debug)]
@@ -16,6 +23,12 @@ pub enum CommonError {
     HyperError(hyper::Error),
     UrlError(url::ParseError),
     ReqwestError(reqwest::Error),
+}
+
+impl From<UtilError> for Error {
+    fn from(source: UtilError) -> Error {
+        Error::Util(source)
+    }
 }
 
 impl From<std::num::ParseIntError> for CommonError {
@@ -116,6 +129,23 @@ impl std::error::Error for Error {
             Error::AlreadyListening => None,
             Error::Common(error) => error.source(),
             Error::CacheMiss => None,
+            Error::Util(error) => error.source(),
         }
+    }
+}
+
+impl std::fmt::Display for UtilError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UtilError::DomainMissing => write!(f, "Domain is missing in the URL"),
+            UtilError::InvalidCurrentFilePath => write!(f, "Current file path is invalid"),
+        }
+    }
+}
+
+
+impl std::error::Error for UtilError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
     }
 }

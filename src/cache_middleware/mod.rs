@@ -1,4 +1,4 @@
-use crate::{error::Error, request::ParodyRequest, storage, storage::Storage};
+use crate::{error::Error, request::ParodyRequest, storage, storage::DirectoryStorage};
 use iron::{middleware::BeforeMiddleware, typemap::Key, IronError, IronResult};
 use std::path::PathBuf;
 
@@ -25,6 +25,11 @@ impl CacheMiddleware {
         }
     }
 
+    pub fn with_storage_config(mut self, storage_config: storage::Config) -> Self {
+        self.storage_config = storage_config;
+        self
+    }
+
     pub fn with_root_dir(mut self, root_dir: PathBuf) -> Self {
         self.storage_config.set_root_dir(root_dir);
         self
@@ -39,7 +44,7 @@ impl CacheMiddleware {
 #[derive(Clone, Copy)]
 pub struct ResponseCache;
 impl Key for ResponseCache {
-    type Value = storage::Storage;
+    type Value = storage::DirectoryStorage;
 }
 
 #[derive(Clone, Copy)]
@@ -52,7 +57,7 @@ impl BeforeMiddleware for CacheMiddleware {
     fn before(&self, req: &mut iron::Request) -> IronResult<()> {
         trace!("Entered BeforeMiddleware::before");
 
-        let storage = Storage::new_with_config(req, self.storage_config.clone()).map_err(
+        let storage = DirectoryStorage::new_with_config(req, self.storage_config.clone()).map_err(
             |error| match error {
                 Error::Common(error) => error.into(),
                 _ => IronError::new(Box::new(error), iron::status::InternalServerError),

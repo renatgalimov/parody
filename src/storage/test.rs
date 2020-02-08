@@ -60,7 +60,7 @@ header! { (XTestData, "X-Test-Data") => [String] }
 fn test_load_should_return_exactly_same_result_as_was_saved() {
     let storage_path = tempfile::tempdir().expect("Cannot create storage path");
 
-    let storage = Storage::new_with_config(
+    let storage = DirectoryStorage::new_with_config(
         &"https://example.com/",
         Config::default().with_root_dir(storage_path.path().to_owned()),
     )
@@ -102,7 +102,7 @@ fn test_load_should_return_exactly_same_result_as_was_saved() {
 
 #[test]
 fn test_load_when_response_cached_should_return_response() {
-    let storage = Storage::new_with_config(
+    let storage = DirectoryStorage::new_with_config(
         &"https://example.com/status200?headers=Content-Type:application%2Fjson",
         Config::default()
             .with_root_dir(get_test_files_path().join("example.com"))
@@ -131,7 +131,7 @@ fn test_load_when_response_cached_should_return_response() {
 fn test_load_when_response_not_cached_should_return_cache_miss() {
     let storage_root = tempfile::tempdir().unwrap();
 
-    let error = Storage::new_with_config(
+    let error = DirectoryStorage::new_with_config(
         &"https://example.com/",
         Config::default().with_root_dir(storage_root.path().into()),
     )
@@ -151,7 +151,7 @@ fn get_test_files_path() -> PathBuf {
 
 #[test]
 fn test_load_when_there_is_no_status_file_should_return_cache_miss() {
-    let storage = Storage::new_with_config(
+    let storage = DirectoryStorage::new_with_config(
         &"https://example.com/failures/missing-status/?query=value",
         Config::default().with_root_dir(get_test_files_path()),
     )
@@ -165,7 +165,7 @@ fn test_load_when_there_is_no_status_file_should_return_cache_miss() {
 
 #[test]
 fn test_storage_new_should_create_storage_for_request() {
-    Storage::new(&"file:///test/location").unwrap();
+    DirectoryStorage::new(&"file:///test/location").unwrap();
 }
 
 // #[test]
@@ -200,7 +200,7 @@ fn test_storage_new_should_create_storage_for_request() {
 fn test_save_should_save_response_status_in_status_file() {
     let storage_root = tempfile::tempdir().unwrap();
 
-    let storage = Storage::new_with_config(
+    let storage = DirectoryStorage::new_with_config(
         &"https://example.com/some-path/?query=value",
         Config::default().with_root_dir(storage_root.path().join("example.com")),
     )
@@ -214,7 +214,7 @@ fn test_save_should_save_response_status_in_status_file() {
         ))
         .expect("Cannot save into storage");
 
-    let status_path = storage_root.path().join("example.com/some-path/GET.status");
+    let status_path = storage_root.path().join("example.com/some-path/:PARODY-QUERY/query=value/GET.status");
 
     let mut status_file = File::open(&status_path).expect("Cannot open status file");
 
@@ -230,7 +230,7 @@ fn test_save_should_save_response_status_in_status_file() {
 fn test_save_should_save_response_body_in_body_file() {
     let storage_root = tempfile::tempdir().unwrap();
 
-    let storage = Storage::new_with_config(
+    let storage = DirectoryStorage::new_with_config(
         &"https://example.com/some-path/?query=value",
         Config::default()
             .with_root_dir(storage_root.path().join("example.com"))
@@ -267,7 +267,7 @@ fn test_save_should_save_response_body_in_body_file() {
 fn test_save_should_save_response_headers_in_headers_file() {
     let storage_root = tempfile::tempdir().unwrap();
 
-    let storage = Storage::new_with_config(
+    let storage = DirectoryStorage::new_with_config(
         &"https://example.com/some-path/?query=value",
         Config::default()
             .with_root_dir(storage_root.path().join("example.com"))
@@ -330,7 +330,7 @@ fn test_get_response_storage_dir_when_request_has_query_should_include_query_fro
     assert_eq!(
         get_response_storage_dir(
             &"https://example.com/test string/unicode-α?query&query=&query-arg=value",
-            &Config::default().use_query_in_path("query")
+            &Config::default().use_query_path("query")
         )
         .unwrap(),
         PathBuf::from_str("test string/unicode-α/:PARODY-QUERY/query/query").unwrap()
@@ -353,6 +353,7 @@ fn test_get_response_storage_dir_all_features() {
             &Config::default()
         )
         .unwrap(),
-        PathBuf::from_str("test string/unicode-α/").unwrap()
+        PathBuf::from_str("test string/unicode-α/:PARODY-QUERY/query/query/query-arg=value")
+            .unwrap()
     );
 }

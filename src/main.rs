@@ -61,7 +61,8 @@ fn main() {
         debug!("Storage dir path already exists");
     }
 
-    match parody::start_default(target_url, storage_dir_path.to_owned()) {
+    let config = parody::storage::Config::default().with_root_dir(storage_dir_path.to_owned());
+    match parody::start(target_url, config) {
         Ok(parody) => {
             println!("PARODY_HOST={}", parody.ip());
             println!("PARODY_PORT={}", parody.port());

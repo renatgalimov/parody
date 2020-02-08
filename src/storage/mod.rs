@@ -19,6 +19,7 @@ mod error;
 #[cfg(test)]
 pub(crate) mod test;
 
+
 const QUERY_SEPARATOR: &'static str = ":PARODY-QUERY";
 const HEADERS_FILE_EXTENSION: &'static str = ".headers.yaml";
 const BODY_FILE_EXTENSION: &'static str = ".body";
@@ -26,7 +27,7 @@ const STATUS_FILE_EXTENSION: &'static str = ".status";
 
 /// Stores a request data
 #[derive(Default)]
-pub struct Storage {
+pub struct DirectoryStorage {
     config: config::Config,
     /// A directory relative to root dir from the config where we store request details
     storage_path_relative: PathBuf,
@@ -53,13 +54,13 @@ impl iron::response::WriteBody for CachedBodyWriter {
     }
 }
 
-impl Storage {
+impl DirectoryStorage {
     pub fn new<T: ParodyRequest>(req: &T) -> Result<Self> {
         Self::new_with_config(req, Config::default())
     }
 
     pub fn new_with_config<T: ParodyRequest>(req: &T, config: Config) -> Result<Self> {
-        Ok(Self {
+        Ok(DirectoryStorage {
             storage_path_relative: get_response_storage_dir(req, &config)?,
             config: config,
             method: req.get_method(),
@@ -142,24 +143,24 @@ impl Storage {
     pub fn save<T: ParodyResponse>(&self, resp: &mut T) -> Result<()> {
         let storage_path = self.get_absolute_storage_path();
 
-        debug!(target: "storage", "Saving response to: {}", &storage_path.to_string_lossy());
+        debug!("Saving response to: {}", &storage_path.to_string_lossy());
         std::fs::create_dir_all(&storage_path)?;
         self.save_body(resp)?;
         self.save_headers(resp)?;
         self.save_status(resp)?;
-        info!(target: "storage", "Saved response to: {}", &storage_path.to_string_lossy());
+        info!("Saved response to: {}", &storage_path.to_string_lossy());
         Ok(())
     }
 
     fn load_headers(&self) -> Result<iron::Headers> {
         let headers_file_path = self.get_headers_file_path();
-        debug!(target: "storage", "Loading headers from: {}", headers_file_path.to_string_lossy());
+        debug!("Loading headers from: {}", headers_file_path.to_string_lossy());
         let mut headers = iron::headers::Headers::new();
         let headers_file = match File::open(&headers_file_path) {
             Ok(file) => file,
             Err(error) => match error.kind() {
                 std::io::ErrorKind::NotFound => {
-                    debug!(target: "storage", "Headers file not found. Returning empty headers.");
+                    debug!("Headers file not found. Returning empty headers.");
                     return Ok(headers);
                 }
                 _ => return Err(error.into()),
@@ -178,14 +179,14 @@ impl Storage {
     fn load_status(&self) -> std::result::Result<iron::status::Status, StorageError> {
         let status_file_path = self.get_status_file_path();
 
-        debug!(target: "storage", "Loading status from: {}", status_file_path.to_string_lossy());
+        debug!("Loading status from: {}", status_file_path.to_string_lossy());
 
         let mut status_raw = String::new();
         File::open(&status_file_path)
             .map_err(|error| match error.kind() {
                 std::io::ErrorKind::NotFound => StorageError::StatusFileNotFound,
                 _ => {
-                    trace!(target: "storage", "Cannot load status: {:?}", error);
+                    trace!("Cannot load status: {:?}", error);
                     StorageError::Common(error.into())
                 }
             })?
@@ -205,10 +206,10 @@ impl Storage {
         let storage_path = self.get_absolute_storage_path();
 
         if !storage_path.exists() {
-            trace!(target: "storage", "Storage dir doesn't exist: {:?}", storage_path.to_string_lossy());
+            trace!("Storage dir doesn't exist: {:?}", storage_path.to_string_lossy());
             return Err(Error::CacheMiss);
         } else {
-            trace!(target: "storage", "Storage dir exists: {:?}", storage_path.to_string_lossy());
+            trace!("Storage dir exists: {:?}", storage_path.to_string_lossy());
         };
 
         let mut response = iron::Response::with(iron::status::Ok);
@@ -216,7 +217,7 @@ impl Storage {
         response.status = match self.load_status() {
             Ok(status) => Some(status),
             Err(StorageError::StatusFileNotFound) => {
-                trace!(target: "storage", "Status file not found in cache");
+                trace!("Status file not found in cache");
                 return Err(Error::CacheMiss);
             }
             Err(StorageError::Common(common_error)) => return Err(common_error.into()),

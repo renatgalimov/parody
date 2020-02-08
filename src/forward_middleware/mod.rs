@@ -5,7 +5,11 @@ use std::{fs::File, io::Seek, path::PathBuf, str::FromStr};
 #[cfg(test)]
 mod test;
 
-/// Caches responses from upstream in the local filesystem
+/// Lazily makes requests to the Upstream
+///
+/// In general, this middleware doesn't make requests,
+/// it inserts a request-making object to the environment
+/// and if necessary - the request might be executed.
 pub struct ForwardMiddleware {
     upstream_url: reqwest::Url,
 }
